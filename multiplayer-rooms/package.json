@@ -1,0 +1,18 @@
+{
+  "name": "multiplayer-rooms",
+  "version": "1.0.0",
+  "description": "Zero-config multiplayer relay server with Unity-style room codes. No IPs exposed, built-in anti-DOS.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": ["multiplayer", "websocket", "relay", "room-code", "game", "realtime"],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.17.1"
+  }
+}

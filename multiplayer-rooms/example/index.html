@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>multiplayer-rooms — Demo</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #6c63ff;
+      --accent2: #00d4aa;
+      --text: #e0e0e0;
+      --muted: #6b7280;
+      --danger: #ef4444;
+      --host: #f59e0b;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+
+    h1 { font-size: 1.5rem; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: .875rem; margin-bottom: 28px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      max-width: 480px;
+      margin-bottom: 16px;
+    }
+    .card h2 { font-size: 1rem; font-weight: 600; margin-bottom: 14px; color: var(--text); }
+
+    label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 4px; }
+    input[type=text] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 12px;
+      color: var(--text);
+      font-size: .9rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    input[type=text]:focus { border-color: var(--accent); }
+    input[type=text]::placeholder { color: var(--muted); }
+
+    .row { display: flex; gap: 8px; }
+    .row input { flex: 1; }
+
+    button {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: .875rem;
+      font-weight: 600;
+      transition: opacity .15s, transform .1s;
+    }
+    button:active { transform: scale(.97); }
+    button:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-success { background: var(--accent2); color: #0f1117; }
+    .btn-danger  { background: var(--danger);  color: #fff; }
+    .btn-ghost   { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+    .code-display {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .code-display .code {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: .3em;
+      color: var(--accent2);
+      font-family: monospace;
+    }
+    .code-display .copy-btn {
+      font-size: .75rem;
+      padding: 5px 10px;
+      background: var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    #players-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+    #players-list li {
+      background: var(--bg);
+      border-radius: 6px;
+      padding: 7px 10px;
+      font-size: .875rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge {
+      font-size: .65rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .badge-host { background: var(--host); color: #000; }
+    .badge-you  { background: var(--accent); color: #fff; }
+
+    #log {
+      height: 220px;
+      overflow-y: auto;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .log-entry { font-size: .8rem; line-height: 1.4; word-break: break-word; }
+    .log-entry.system { color: var(--muted); font-style: italic; }
+    .log-entry.self   { color: var(--accent); }
+    .log-entry.other  { color: var(--accent2); }
+    .log-entry.error  { color: var(--danger); }
+
+    #status-bar {
+      width: 100%;
+      max-width: 480px;
+      text-align: center;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); margin-right: 5px; }
+    .dot.connected { background: var(--accent2); }
+
+    /* Sections shown/hidden */
+    #section-lobby, #section-room { display: none; }
+  </style>
+</head>
+<body>
+  <h1>🎮 multiplayer-rooms</h1>
+  <p class="subtitle">Demo — share the code, play together</p>
+
+  <!-- ── Connect ─────────────────────────────────────────────── -->
+  <div class="card" id="section-connect">
+    <h2>Connect</h2>
+    <label>Your Name</label>
+    <input type="text" id="input-name" placeholder="Player" maxlength="32" />
+    <br/>
+    <label style="margin-top:10px;">Server URL</label>
+    <input type="text" id="input-server" value="ws://localhost:3000" />
+    <br/>
+    <button class="btn-primary" id="btn-connect" style="margin-top:12px;width:100%">Connect</button>
+  </div>
+
+  <!-- ── Lobby ──────────────────────────────────────────────── -->
+  <div class="card" id="section-lobby">
+    <h2>Lobby</h2>
+    <button class="btn-primary" id="btn-create" style="width:100%;margin-bottom:10px;">Create Room</button>
+    <div class="row">
+      <input type="text" id="input-code" placeholder="Enter code (e.g. XK7R2Q)" maxlength="6" style="text-transform:uppercase;letter-spacing:.15em" />
+      <button class="btn-success" id="btn-join">Join</button>
+    </div>
+  </div>
+
+  <!-- ── Room ───────────────────────────────────────────────── -->
+  <div class="card" id="section-room">
+    <h2>Room</h2>
+    <div class="code-display">
+      <span class="code" id="room-code">------</span>
+      <button class="copy-btn" id="btn-copy">Copy</button>
+    </div>
+
+    <label style="margin-bottom:6px;">Players</label>
+    <ul id="players-list"></ul>
+
+    <hr style="border-color:var(--border);margin:14px 0;" />
+
+    <div id="log"></div>
+    <div class="row">
+      <input type="text" id="input-chat" placeholder="Say something…" maxlength="200" />
+      <button class="btn-primary" id="btn-send">Send</button>
+    </div>
+    <br/>
+    <button class="btn-ghost" id="btn-leave" style="width:100%">Leave Room</button>
+  </div>
+
+  <div id="status-bar"><span class="dot" id="dot"></span><span id="status-text">Not connected</span></div>
+
+  <script src="../client/MultiplayerClient.js"></script>
+  <script>
+    // ── State ──────────────────────────────────────────────────────
+    let client = null;
+    let myName = '';
+
+    // ── Elements ───────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const sections = {
+      connect: $('section-connect'),
+      lobby:   $('section-lobby'),
+      room:    $('section-room'),
+    };
+
+    function showSection(name) {
+      Object.values(sections).forEach(el => el.style.display = 'none');
+      sections[name].style.display = 'block';
+    }
+
+    function setStatus(text, connected = false) {
+      $('status-text').textContent = text;
+      $('dot').className = 'dot' + (connected ? ' connected' : '');
+    }
+
+    // ── Log helper ─────────────────────────────────────────────────
+    function log(text, type = 'system') {
+      const el = document.createElement('div');
+      el.className = `log-entry ${type}`;
+      el.textContent = text;
+      const logEl = $('log');
+      logEl.appendChild(el);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    // ── Players list ───────────────────────────────────────────────
+    function renderPlayers(players) {
+      const ul = $('players-list');
+      ul.innerHTML = '';
+      players.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = p.name;
+        if (p.isHost) {
+          const b = document.createElement('span');
+          b.className = 'badge badge-host';
+          b.textContent = 'host';
+          li.appendChild(b);
+        }
+        if (p.id === client.id) {
+          const b = document.createElement('span');
+          b.className = 'badge badge-you';
+          b.textContent = 'you';
+          li.appendChild(b);
+        }
+        ul.appendChild(li);
+      });
+    }
+
+    // ── Connect ────────────────────────────────────────────────────
+    $('btn-connect').addEventListener('click', async () => {
+      myName = $('input-name').value.trim() || 'Player';
+      const url = $('input-server').value.trim();
+      $('btn-connect').disabled = true;
+      setStatus('Connecting…');
+      try {
+        client = new MultiplayerClient(url);
+        await client.connect();
+
+        setStatus(`Connected as ${myName}`, true);
+        showSection('lobby');
+        attachClientEvents();
+      } catch {
+        setStatus('Connection failed');
+        $('btn-connect').disabled = false;
+      }
+    });
+
+    // ── Create room ────────────────────────────────────────────────
+    $('btn-create').addEventListener('click', () => {
+      client.createRoom(myName, { maxPlayers: 8 });
+    });
+
+    // ── Join room ──────────────────────────────────────────────────
+    $('btn-join').addEventListener('click', () => {
+      const code = $('input-code').value.trim().toUpperCase();
+      if (code.length < 4) return;
+      client.joinRoom(code, myName);
+    });
+    $('input-code').addEventListener('keydown', e => {
+      if (e.key === 'Enter') $('btn-join').click();
+    });
+
+    // ── Send chat ──────────────────────────────────────────────────
+    $('btn-send').addEventListener('click', sendChat);
+    $('input-chat').addEventListener('keydown', e => {
+      if (e.key === 'Enter') sendChat();
+    });
+    function sendChat() {
+      const text = $('input-chat').value.trim();
+      if (!text) return;
+      client.broadcast('chat', { name: myName, text });
+      log(`You: ${text}`, 'self');
+      $('input-chat').value = '';
+    }
+
+    // ── Leave ──────────────────────────────────────────────────────
+    $('btn-leave').addEventListener('click', () => client.leave());
+
+    // ── Copy code ──────────────────────────────────────────────────
+    $('btn-copy').addEventListener('click', () => {
+      navigator.clipboard?.writeText(client.roomCode);
+      $('btn-copy').textContent = 'Copied!';
+      setTimeout(() => ($('btn-copy').textContent = 'Copy'), 1500);
+    });
+
+    // ── Client event listeners ─────────────────────────────────────
+    function attachClientEvents() {
+      client
+        .on('room_created', ({ code, players }) => {
+          $('room-code').textContent = code;
+          renderPlayers(players);
+          $('log').innerHTML = '';
+          log(`Room created! Share code: ${code}`);
+          showSection('room');
+        })
+
+        .on('room_joined', ({ code, players }) => {
+          $('room-code').textContent = code;
+          renderPlayers(players);
+          $('log').innerHTML = '';
+          log(`Joined room ${code}`);
+          showSection('room');
+        })
+
+        .on('room_left', () => {
+          showSection('lobby');
+          setStatus(`Connected as ${myName}`, true);
+        })
+
+        .on('player_joined', ({ player, players }) => {
+          renderPlayers(players);
+          log(`${player.name} joined the room`);
+        })
+
+        .on('player_left', ({ playerId, players, newHostId }) => {
+          const old = client.players.find(p => p.id === playerId);
+          renderPlayers(players);
+          log(`${old?.name || 'Someone'} left the room`);
+          if (newHostId === client.id) log('You are now the host!');
+        })
+
+        .on('host_migrated', () => {
+          log('You are now the host!');
+        })
+
+        .on('room_locked', ({ locked }) => {
+          log(locked ? 'Room locked by host' : 'Room unlocked by host');
+        })
+
+        .on('kicked', ({ reason }) => {
+          alert(`You were kicked${reason ? ': ' + reason : ''}`);
+          showSection('lobby');
+        })
+
+        .on('message:chat', ({ from, data }) => {
+          if (from !== client.id) {
+            log(`${data.name}: ${data.text}`, 'other');
+          }
+        })
+
+        .on('error', ({ code, message }) => {
+          log(`Error: ${code}${message ? ' — ' + message : ''}`, 'error');
+        })
+
+        .on('disconnected', () => {
+          setStatus('Disconnected');
+          showSection('connect');
+          $('btn-connect').disabled = false;
+        });
+    }
+  </script>
+</body>
+</html>
